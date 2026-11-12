@@ -1,0 +1,44 @@
+# Checks ESPN injury reports on a schedule and pushes changes to your phone via ntfy.
+# Needs one repository secret: NTFY_TOPIC (the topic you subscribed to in the ntfy app).
+# GitHub runs schedules every 5 minutes at best; under load a run can be 5-15 minutes late.
+name: Injury alerts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: injury-alerts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # The last run's snapshot of every player's status, so only real changes alert.
+      - name: Restore last snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .injury_snapshot.json
+          key: injury-snapshot-${{ github.run_id }}
+          restore-keys: injury-snapshot-
+
+      - name: Check injury reports
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: python3 injury_watch.py
+
+      - name: Save snapshot
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .injury_snapshot.json
+          key: injury-snapshot-${{ github.run_id }}
