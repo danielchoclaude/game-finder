@@ -1,0 +1,20 @@
+{
+  "favs": [
+    {
+      "league": "nfl",
+      "id": "8",
+      "name": "Detroit Lions"
+    },
+    {
+      "league": "nba",
+      "id": "8",
+      "name": "Detroit Pistons"
+    },
+    {
+      "league": "kor",
+      "id": "451",
+      "name": "South Korea"
+    }
+  ],
+  "roster": ""
+}

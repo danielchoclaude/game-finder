@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Finder</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1f6feb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Game Finder">
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --ink:#15181d; --muted:#667085; --line:#e4e7ec;
+  --accent:#1f6feb; --accent-ink:#fff; --good:#12805c; --good-bg:#e3f5ee; --live:#d92d20; --chip:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --panel:#181b21; --ink:#e8eaed; --muted:#98a2b3; --line:#2a2f38;
+    --accent:#4c8dff; --accent-ink:#0b0d10; --good:#4fd1a1; --good-bg:#11372b; --live:#ff6b5e; --chip:#232831;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --panel:#181b21; --ink:#e8eaed; --muted:#98a2b3; --line:#2a2f38;
+  --accent:#4c8dff; --accent-ink:#0b0d10; --good:#4fd1a1; --good-bg:#11372b; --live:#ff6b5e; --chip:#232831;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+button,select,input{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.top{display:flex;align-items:center;gap:12px;padding:12px 0;flex-wrap:wrap}
+.top h1{font-size:18px;margin:0;margin-right:auto}
+nav.tabs{display:flex;gap:4px;overflow-x:auto}
+nav.tabs button{border:0;background:none;padding:10px 12px;border-bottom:2px solid transparent;cursor:pointer;color:var(--muted);white-space:nowrap}
+nav.tabs button.on{color:var(--ink);border-color:var(--accent);font-weight:600}
+.leagues{display:flex;gap:6px;flex-wrap:wrap;padding:10px 0}
+.pill{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:13px}
+.pill.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+main{padding:16px 0 48px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.bar label{display:flex;gap:6px;align-items:center;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card.watchable{border-color:var(--good)}
+.meta{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;margin-bottom:8px}
+.live{color:var(--live);font-weight:700}
+.team{display:flex;align-items:center;gap:8px;padding:3px 0}
+.team img{width:24px;height:24px;object-fit:contain}
+.team .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team .rec{color:var(--muted);font-size:12px}
+.team .sc{font-weight:700;font-size:16px;min-width:28px;text-align:right}
+.team.win .nm{font-weight:600}
+.sect{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px}
+.sect .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--chip);border:1px solid transparent;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer}
+.chip.mine{background:var(--good-bg);color:var(--good);border-color:var(--good);font-weight:600}
+.watch{display:inline-block;margin-top:6px;font-size:12px;font-weight:600;color:var(--good)}
+.odds{display:flex;gap:14px;flex-wrap:wrap}
+.odds b{font-weight:600}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);padding:24px;text-align:center;background:var(--panel);border:1px dashed var(--line);border-radius:12px}
+.err{color:var(--live);font-size:12px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;color:var(--muted);text-transform:uppercase}
+th:first-child,td:first-child{text-align:left}
+td.tm{display:flex;gap:8px;align-items:center}
+td.tm img{width:20px;height:20px;object-fit:contain}
+.tblwrap{overflow-x:auto}
+h2{font-size:15px;margin:18px 0 8px}
+.news{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.news .card{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.news img{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--chip)}
+.news .body{padding:10px 12px}
+.news h3{font-size:14px;margin:4px 0}
+.news p{margin:0;color:var(--muted);font-size:13px}
+.tag{font-size:11px;font-weight:700;color:var(--accent)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);max-width:560px;width:calc(100% - 32px);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+.fav{display:flex;align-items:center;gap:10px}
+.fav img{width:32px;height:32px;object-fit:contain}
+.fav h3{margin:0;font-size:15px;flex:1}
+.games-list{margin-top:8px}
+.gl{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.gl .chips{justify-content:flex-end}
+.note{font-size:12px;color:var(--muted);margin-top:24px}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--live);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.inj{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.inj:first-child{border-top:0;padding-top:0}
+.st{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;background:var(--chip)}
+.st-Out,.st-InjuredReserve{background:var(--live);color:#fff}
+.st-Doubtful{background:#e8590c;color:#fff}
+.st-Questionable,.st-DayToDay{background:#f5c518;color:#1a1a1a}
+.st-Active{background:var(--good-bg);color:var(--good)}
+#toasts{position:fixed;right:16px;bottom:16px;z-index:20;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+.toast{position:relative;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--live);border-radius:10px;padding:10px 30px 10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.18);cursor:pointer;font-size:13px}
+.toast div{color:var(--muted);margin-top:3px}
+.toast .x{position:absolute;top:6px;right:8px;border:0;background:none;cursor:pointer;font-size:16px;color:var(--muted)}
+h3.day{font-size:13px;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em}
+h3.day:first-of-type{margin-top:0}
+.ai{display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media (max-width:800px){.ai{grid-template-columns:1fr}}
+.msgs{display:flex;flex-direction:column;gap:10px;min-height:300px;max-height:60vh;overflow-y:auto;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.msg{max-width:85%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word}
+.msg.user{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.msg.assistant{align-self:flex-start;background:var(--chip)}
+.msg.err{background:none;border:1px solid var(--live);color:var(--live)}
+.ask{display:flex;gap:8px;margin-top:10px}
+.ask textarea,.roster{flex:1;resize:vertical;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit}
+.roster{width:100%;min-height:180px}
+.sugg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.attach{display:flex;align-items:center;font-size:18px;padding:6px 10px}
+.pending{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pthumb{position:relative}
+.pthumb img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+.pthumb button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);cursor:pointer;line-height:20px;padding:0}
+.mthumb{display:block;max-width:160px;max-height:160px;border-radius:8px;margin-bottom:6px}
+.ai.dragging .msgs{outline:2px dashed var(--accent);outline-offset:-6px}
+@media (max-width:480px){.grid,.news{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>Game Finder</h1>
+      <a class="btn" href="https://apps.apple.com/app/id1514546162" target="_blank" rel="noopener" title="Real Sports has no public data feed, so this opens the app">Real Sports ↗</a>
+      <button class="btn" id="servicesBtn">My channels &amp; apps</button>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="games">Games &amp; odds</button>
+      <button data-tab="teams">My teams</button>
+      <button data-tab="standings">Standings</button>
+      <button data-tab="injuries">Injuries</button>
+      <button data-tab="news">News</button>
+      <button data-tab="ai">Fantasy AI</button>
+    </nav>
+    <div class="leagues" id="leagues"></div>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<dialog id="svcDlg">
+  <h3 style="margin-top:0">Channels &amp; apps you can watch</h3>
+  <p class="muted" style="margin-top:0">Games on these get highlighted. You can also tap any channel on a game card to add or remove it.</p>
+  <div class="chips" id="svcChips"></div>
+  <div class="bar" style="margin-top:12px">
+    <input id="svcCustom" placeholder="Add another (e.g. MSG, NESN)" style="flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
+    <button class="btn" id="svcAdd">Add</button>
+  </div>
+  <div style="text-align:right"><button class="btn primary" id="svcDone">Done</button></div>
+</dialog>
+
+<dialog id="teamDlg">
+  <h3 style="margin-top:0">Add a team</h3>
+  <div class="bar">
+    <select id="teamLeague" class="btn"></select>
+    <select id="teamPick" class="btn" style="flex:1"><option>Loading…</option></select>
+  </div>
+  <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+    <button class="btn" id="teamCancel">Cancel</button>
+    <button class="btn primary" id="teamAdd">Add team</button>
+  </div>
+</dialog>
+
+<script>
+const API = 'https://site.api.espn.com/apis/site/v2/sports/';
+const API_STANDINGS = 'https://site.api.espn.com/apis/v2/sports/';
+
+// Korea MNT is a single team, not a league: its games come from several FIFA/AFC competitions.
+const KOREA = {id:'451', name:'South Korea', comps:['fifa.friendly','fifa.worldq.afc','afc.asian.cup','fifa.world']};
+const LEAGUES = [
+  {k:'nfl', label:'NFL', path:'football/nfl'},
+  {k:'nba', label:'NBA', path:'basketball/nba'},
+  {k:'mlb', label:'MLB', path:'baseball/mlb'},
+  {k:'kor', label:'Korea MNT', path:'soccer/fifa.friendly', team:true},
+  {k:'epl', label:'Premier League', path:'soccer/eng.1'},
+  {k:'ucl', label:'Champions League', path:'soccer/uefa.champions'},
+];
+const L = Object.fromEntries(LEAGUES.map(l => [l.k, l]));
+const DEFAULT_FAVS = [
+  {league:'nfl', id:'8', name:'Detroit Lions', logo:'https://a.espncdn.com/i/teamlogos/nfl/500/det.png'},
+  {league:'nba', id:'8', name:'Detroit Pistons', logo:'https://a.espncdn.com/i/teamlogos/nba/500/det.png'},
+  {league:'kor', id:KOREA.id, name:'South Korea', logo:''},
+];
+// The AI and watchlist sync live in server.py on the Mac. The hosted phone app has no server behind it.
+const IS_SERVED = ['localhost', '127.0.0.1'].includes(location.hostname);
+
+const DEFAULT_CHANNELS = ['ESPN','ESPN2','ESPN+','ABC','CBS','Paramount+','NBC','Peacock','FOX','FS1','TNT','truTV','Prime Video','Netflix','Apple TV','NFL Network','NBA TV','MLB Network','NHL Network','USA Net','YouTube'];
+
+// Official sign-in/landing pages for streaming apps that show up in broadcast listings.
+const WATCH_LINKS = {
+  'espn+':'https://www.espn.com/watch/', 'espn':'https://www.espn.com/watch/', 'espn2':'https://www.espn.com/watch/', 'abc':'https://www.espn.com/watch/',
+  'peacock':'https://www.peacocktv.com/', 'paramount+':'https://www.paramountplus.com/', 'prime video':'https://www.primevideo.com/',
+  'netflix':'https://www.netflix.com/', 'apple tv':'https://tv.apple.com/', 'youtube':'https://www.youtube.com/',
+  'nba league pass':'https://www.nba.com/watch/league-pass-stream', 'nfl+':'https://www.nfl.com/plus/', 'mlb.tv':'https://www.mlb.com/tv',
+};
+
+// ---------- state ----------
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('gf2.'+k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('gf2.'+k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  tab: store.get('tab','games'),
+  leagues: store.get('leagues', LEAGUES.map(l => l.k)).filter(k => L[k]),
+  channels: store.get('channels',[]),
+  favs: store.get('favs', DEFAULT_FAVS).filter(f => L[f.league]),   // [{league,id,name,logo}]
+  roster: store.get('roster',''),
+  chat: store.get('chat',[]),            // [{role:'user'|'assistant', text}]
+  date: new Date(),
+  onlyWatchable: store.get('onlyWatchable',false),
+  onlyFavs: store.get('onlyFavs',false),
+  view: store.get('view','upcoming'),     // 'upcoming' | 'day'
+  standingsLeague: store.get('standingsLeague','nba'),
+};
+const UPCOMING_DAYS = 7;
+const dayLabel = iso => {
+  const d = new Date(iso), t = new Date();
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
+  return diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString([], {weekday:'long', month:'short', day:'numeric'});
+};
+const save = () => {
+  ['tab','leagues','channels','favs','roster','chat','onlyWatchable','onlyFavs','standingsLeague','view','injSnap','injAlerts','injUnseen'].forEach(k => store.set(k, state[k]));
+  syncWatchlist();
+};
+// Share teams + roster with the background watcher (injury_watch.py) so Mac alerts work with this page closed.
+let lastSynced = '', syncTimer = null;
+function syncWatchlist(){
+  if (!IS_SERVED) return;
+  const body = JSON.stringify({favs: state.favs, roster: state.roster});
+  if (body === lastSynced) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => fetch('/api/watchlist', {method:'POST', headers:{'Content-Type':'application/json'}, body})
+    .then(r => { if (r.ok) lastSynced = body; }).catch(() => {}), 800);
+}
+
+// Korea: merge one day's games (scoreboard) or a full schedule across its competitions.
+async function koreaDay(day, ttl){
+  const lists = await Promise.all(KOREA.comps.map(c => getJSON(`${API}soccer/${c}/scoreboard?dates=${day}`, ttl).then(d => d.events || []).catch(() => [])));
+  return lists.flat().filter(ev => ev.competitions[0].competitors.some(t => String(t.team?.id ?? t.id) === KOREA.id));
+}
+async function koreaSchedule(){
+  const lists = await Promise.all(KOREA.comps.map(c => getJSON(`${API}soccer/${c}/teams/${KOREA.id}/schedule`, 300000).then(d => d.events || []).catch(() => [])));
+  return lists.flat().sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).trim().toLowerCase();
+const isMine = name => state.channels.some(c => norm(c) === norm(name));
+const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+const isToday = d => ymd(d) === ymd(new Date());
+const fmtTime = iso => new Date(iso).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+const fmtDay = iso => new Date(iso).toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m/60)}h ago` : fmtDay(iso); };
+
+const cache = new Map();
+async function getJSON(url, ttl = 60000){
+  const hit = cache.get(url);
+  if (hit && Date.now() - hit.t < ttl) return hit.data;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} from ESPN`);
+  const data = await r.json();
+  cache.set(url, {t: Date.now(), data});
+  return data;
+}
+
+// Scoreboard broadcasts: [{names:[...]}]; team schedule broadcasts: [{media:{shortName}}]
+function broadcastNames(comp){
+  const out = new Set();
+  (comp.broadcasts || []).forEach(b => {
+    (b.names || []).forEach(n => out.add(n));
+    if (b.media?.shortName) out.add(b.media.shortName);
+  });
+  (comp.geoBroadcasts || []).forEach(g => g.media?.shortName && out.add(g.media.shortName));
+  return [...out];
+}
+
+function chipsHTML(names){
+  if (!names.length) return '<span class="muted">No broadcast listed yet</span>';
+  return names.map(n => `<span class="chip ${isMine(n) ? 'mine' : ''}" data-ch="${esc(n)}" title="Tap to ${isMine(n) ? 'remove from' : 'add to'} my channels">${esc(n)}</span>`).join('');
+}
+function watchLinkHTML(names){
+  const mine = names.filter(isMine);
+  const pick = mine.find(n => WATCH_LINKS[norm(n)]) ;
+  if (pick) return `<a class="watch" href="${WATCH_LINKS[norm(pick)]}" target="_blank" rel="noopener">▶ Watch on ${esc(pick)}</a>`;
+  if (mine.length) return `<span class="watch">✓ On ${esc(mine.join(', '))}</span>`;
+  return '';
+}
+
+// ---------- header ----------
+function renderLeagues(){
+  $('#leagues').innerHTML = LEAGUES.map(l => `<button class="pill ${state.leagues.includes(l.k) ? 'on' : ''}" data-lg="${l.k}">${l.label}</button>`).join('');
+  $('#leagues').style.display = ['standings','ai','injuries'].includes(state.tab) ? 'none' : '';
+}
+$('#leagues').addEventListener('click', e => {
+  const k = e.target.dataset.lg; if (!k) return;
+  state.leagues = state.leagues.includes(k) ? state.leagues.filter(x => x !== k) : [...state.leagues, k];
+  save(); renderLeagues(); render();
+});
+function renderTabs(){ document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.tab)); }
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.dataset.tab; if (!t) return;
+  state.tab = t; save(); renderTabs(); renderLeagues(); render();
+});
+
+// Toggle a channel by tapping its chip anywhere
+document.addEventListener('click', e => {
+  const ch = e.target.closest('.chip')?.dataset.ch; if (!ch) return;
+  state.channels = isMine(ch) ? state.channels.filter(c => norm(c) !== norm(ch)) : [...state.channels, ch];
+  save();
+  if (e.target.closest('#svcDlg')) renderSvc(); else render(true);
+});
+
+// ---------- channels dialog ----------
+function renderSvc(){
+  const all = [...new Set([...DEFAULT_CHANNELS, ...state.channels])];
+  $('#svcChips').innerHTML = chipsHTML(all);
+}
+$('#servicesBtn').onclick = () => { renderSvc(); $('#svcDlg').showModal(); };
+$('#svcDone').onclick = () => { $('#svcDlg').close(); render(true); };
+$('#svcAdd').onclick = () => {
+  const v = $('#svcCustom').value.trim(); if (!v || isMine(v)) return;
+  state.channels.push(v); save(); $('#svcCustom').value = ''; renderSvc();
+};
+
+// ---------- games ----------
+let refreshTimer = null;
+async function renderGames(soft){
+  const main = $('#main');
+  const up = state.view === 'upcoming';
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if (!soft) main.innerHTML = `
+    <div class="bar">
+      <button class="pill ${up ? 'on' : ''}" id="vUp">Next ${UPCOMING_DAYS} days</button>
+      <button class="pill ${up ? '' : 'on'}" id="vDay">Pick a day</button>
+      <span ${up ? 'hidden' : ''} style="display:${up ? 'none' : 'contents'}">
+        <button class="btn" id="prev">‹</button>
+        <input type="date" class="btn" id="date" value="${iso(state.date)}">
+        <button class="btn" id="next">›</button>
+        <button class="btn" id="today">Today</button>
+      </span>
+      <label><input type="checkbox" id="ow" ${state.onlyWatchable ? 'checked' : ''}> Only games I can watch</label>
+      <label><input type="checkbox" id="of" ${state.onlyFavs ? 'checked' : ''}> Only my teams</label>
+      <span class="muted" id="upd" style="margin-left:auto"></span>
+    </div>
+    <div id="games"><div class="empty">Loading games…</div></div>`;
+  $('#vUp').onclick = () => { state.view = 'upcoming'; save(); renderGames(); };
+  $('#vDay').onclick = () => { state.view = 'day'; save(); renderGames(); };
+  const shift = n => { state.date = new Date(state.date.getFullYear(), state.date.getMonth(), state.date.getDate() + n); renderGames(); };
+  $('#prev').onclick = () => shift(-1);
+  $('#next').onclick = () => shift(1);
+  $('#today').onclick = () => { state.date = new Date(); renderGames(); };
+  $('#date').onchange = e => { const [y,m,d] = e.target.value.split('-').map(Number); if (y) { state.date = new Date(y, m-1, d); renderGames(); } };
+  $('#ow').onchange = e => { state.onlyWatchable = e.target.checked; save(); renderGames(true); };
+  $('#of').onchange = e => { state.onlyFavs = e.target.checked; save(); renderGames(true); };
+
+  if (!state.leagues.length) { $('#games').innerHTML = '<div class="empty">Pick at least one league above.</div>'; return; }
+
+  // ESPN rejects date ranges for most leagues, so the upcoming view fetches one day at a time.
+  const today = new Date();
+  const days = up ? Array.from({length: UPCOMING_DAYS}, (_, i) => ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)))
+                  : [ymd(state.date)];
+  const results = await Promise.all(state.leagues.map(async k => {
+    try {
+      // Korea plays rarely, so in the upcoming view show its next fixtures however far out they are.
+      if (k === 'kor' && up) return {k, events: (await koreaSchedule()).filter(e => (e.status || e.competitions[0].status).type.state !== 'post').slice(0, 3)};
+      const perDay = await Promise.all(days.map(day => {
+        const ttl = day === ymd(today) ? 30000 : 300000;
+        return (k === 'kor' ? koreaDay(day, ttl) : getJSON(`${API}${L[k].path}/scoreboard?dates=${day}`, ttl).then(d => d.events || []))
+          .catch(err => ({err: err.message}));
+      }));
+      const ok = perDay.filter(Array.isArray);
+      if (!ok.length) throw new Error(perDay[0].err);
+      const seen = new Set();
+      let events = ok.flat().filter(e => !seen.has(e.id) && seen.add(e.id));
+      if (up) events = events.filter(e => e.status.type.state !== 'post');
+      return {k, events};
+    }
+    catch (err) { return {k, events: [], err: err.message}; }
+  }));
+  if (state.tab !== 'games') return;
+
+  const favIds = new Set(state.favs.map(f => `${f.league}:${f.id}`));
+  let anyLive = false;
+  const html = results.map(({k, events, err}) => {
+    let cards = events.map(ev => {
+      const c = ev.competitions[0];
+      const st = (ev.status || c.status).type;
+      if (st.state === 'in') anyLive = true;
+      const names = broadcastNames(c);
+      const watchable = names.some(isMine);
+      const fav = c.competitors.some(t => favIds.has(`${k}:${t.team.id}`));
+      return {ev, c, st, names, watchable, fav};
+    });
+    if (state.onlyWatchable) cards = cards.filter(x => x.watchable);
+    if (state.onlyFavs) cards = cards.filter(x => x.fav);
+    const order = {in:0, pre:1, post:2};
+    cards.sort((a, b) => (order[a.st.state] - order[b.st.state]) || (new Date(a.ev.date) - new Date(b.ev.date)));
+    const when = up ? (k === 'kor' ? ' scheduled' : ` in the next ${UPCOMING_DAYS} days`) : ' on this day';
+    let body;
+    if (err) body = `<div class="err">Couldn't load ${L[k].label}: ${esc(err)}</div>`;
+    else if (!cards.length) body = `<div class="empty">No ${L[k].label} games${state.onlyWatchable || state.onlyFavs ? ' match your filters' : ''}${when}.</div>`;
+    else if (!up) body = `<div class="grid">${cards.map(gameCard).join('')}</div>`;
+    else {
+      // Group by "Live now", then by local calendar day.
+      const groups = new Map();
+      cards.forEach(x => {
+        const key = x.st.state === 'in' ? 'Live now' : dayLabel(x.ev.date);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(x);
+      });
+      body = [...groups].map(([label, xs]) => `<h3 class="day">${esc(label)} <span class="muted">· ${xs.length}</span></h3><div class="grid">${xs.map(gameCard).join('')}</div>`).join('');
+    }
+    return `<h2>${L[k].label}</h2>${body}`;
+  }).join('');
+  $('#games').innerHTML = html;
+  $('#upd').textContent = `Updated ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}${anyLive ? ' · live games refresh every 30s' : ''}`;
+
+  clearTimeout(refreshTimer);
+  if (anyLive && (up || isToday(state.date))) refreshTimer = setTimeout(() => state.tab === 'games' && renderGames(true), 30000);
+}
+
+function gameCard({ev, c, st, names, watchable}){
+  const teams = [...c.competitors].sort((a, b) => (a.homeAway === 'away' ? -1 : 1));
+  const status = st.state === 'in' ? `<span class="live">● ${esc(st.shortDetail)}</span>`
+    : st.state === 'post' ? esc(st.shortDetail) : fmtTime(ev.date);
+  const teamRows = teams.map(t => {
+    const rec = t.records?.find(r => r.type === 'total' || r.name === 'overall')?.summary || t.records?.[0]?.summary || '';
+    const logo = t.team.logo || t.team.logos?.[0]?.href || '';
+    return `<div class="team ${t.winner ? 'win' : ''}">
+      ${logo ? `<img src="${esc(logo)}" alt="" loading="lazy">` : ''}
+      <span class="nm">${esc(t.team.shortDisplayName || t.team.displayName)}</span>
+      <span class="rec">${esc(rec)}</span>
+      <span class="sc">${st.state === 'pre' ? '' : esc(t.score ?? '')}</span>
+    </div>`;
+  }).join('');
+
+  const o = c.odds?.[0];
+  let odds = '';
+  if (o && (o.details || o.overUnder)) {
+    const ml = side => { const m = o.moneyline?.[side]; return (m?.current || m?.close || m?.open)?.odds; };
+    const away = teams[0].team.abbreviation, home = teams[1].team.abbreviation;
+    const parts = [];
+    if (o.details) parts.push(`<span>Spread <b>${esc(o.details)}</b></span>`);
+    if (o.overUnder) parts.push(`<span>O/U <b>${esc(o.overUnder)}</b></span>`);
+    if (ml('away') && ml('home')) parts.push(`<span>ML <b>${esc(away)} ${esc(ml('away'))}</b> / <b>${esc(home)} ${esc(ml('home'))}</b></span>`);
+    odds = `<div class="sect"><div class="lbl">Odds${o.provider?.name ? ' · ' + esc(o.provider.name) : ''}</div><div class="odds">${parts.join('')}</div></div>`;
+  }
+
+  const leaders = teams.map(t => {
+    const cat = t.leaders?.[0]; const ld = cat?.leaders?.[0];
+    return ld ? `<div>${esc(t.team.abbreviation)}: ${esc(ld.athlete?.shortName || ld.athlete?.displayName)} <span class="muted">${esc(ld.displayValue)} ${esc(cat.abbreviation || cat.shortDisplayName || '')}</span></div>` : '';
+  }).join('');
+  const leadersBlock = leaders ? `<div class="sect"><div class="lbl">${st.state === 'pre' ? 'Season leaders' : 'Game leaders'}</div>${leaders}</div>` : '';
+
+  const link = ev.links?.find(l => l.rel?.includes('summary'))?.href || ev.links?.[0]?.href;
+  return `<div class="card ${watchable ? 'watchable' : ''}">
+    <div class="meta"><span>${status}</span><span>${esc(c.venue?.fullName || '')}</span></div>
+    ${teamRows}
+    <div class="sect"><div class="lbl">Where to watch</div><div class="chips">${chipsHTML(names)}</div>${watchLinkHTML(names)}</div>
+    ${odds}${leadersBlock}
+    ${link ? `<div class="sect"><a href="${esc(link)}" target="_blank" rel="noopener">Box score &amp; stats on ESPN ↗</a></div>` : ''}
+  </div>`;
+}
+
+// ---------- standings ----------
+const COLS = {
+  basketball: ['W','L','PCT','GB','STRK','L10'],
+  baseball:   ['W','L','PCT','GB','STRK','L10'],
+  football:   ['W','L','T','PCT','PF','PA','STRK'],
+  hockey:     ['GP','W','L','OTL','PTS','STRK'],
+  soccer:     ['GP','W','D','L','GD','P'],
+};
+function collectGroups(node, out = []){
+  if (node.standings?.entries?.length) out.push({name: node.name || node.abbreviation, entries: node.standings.entries});
+  (node.children || []).forEach(ch => collectGroups(ch, out));
+  return out;
+}
+async function teamsFor(k){
+  if (k === 'kor') return [{name: 'Korea MNT', entries: [{team: {id: KOREA.id, displayName: KOREA.name, logos: []}, stats: []}]}];
+  const d = await getJSON(`${API_STANDINGS}${L[k].path}/standings`, 600000);
+  return collectGroups(d);
+}
+async function renderStandings(){
+  const main = $('#main');
+  main.innerHTML = `<div class="bar"><select class="btn" id="stl">${LEAGUES.filter(l => !l.team).map(l => `<option value="${l.k}" ${l.k === state.standingsLeague ? 'selected' : ''}>${l.label}</option>`).join('')}</select></div><div id="st"><div class="empty">Loading standings…</div></div>`;
+  $('#stl').onchange = e => { state.standingsLeague = e.target.value; save(); renderStandings(); };
+  const k = state.standingsLeague;
+  try {
+    const groups = await teamsFor(k);
+    if (state.tab !== 'standings' || k !== state.standingsLeague) return;
+    if (!groups.length) { $('#st').innerHTML = '<div class="empty">No standings available for this league right now.</div>'; return; }
+    const want = COLS[L[k].path.split('/')[0]];
+    const stat = (e, ab) => e.stats.find(s => s.abbreviation === ab)?.displayValue;
+    $('#st').innerHTML = groups.map(g => {
+      const cols = want.filter(ab => g.entries.some(e => stat(e, ab) != null));
+      const rows = [...g.entries].sort((a, b) => (Number(stat(a,'SEED')) || 99) - (Number(stat(b,'SEED')) || 99) || 0).map(e => {
+        const logo = e.team.logos?.[0]?.href;
+        return `<tr><td class="tm">${logo ? `<img src="${esc(logo)}" alt="" loading="lazy">` : ''}${esc(e.team.displayName)}</td>${cols.map(ab => `<td>${esc(stat(e, ab) ?? '–')}</td>`).join('')}</tr>`;
+      }).join('');
+      return `<h2>${esc(g.name)}</h2><div class="tblwrap"><table><thead><tr><th>Team</th>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    }).join('');
+  } catch (err) { $('#st').innerHTML = `<div class="err">Couldn't load standings: ${esc(err.message)}</div>`; }
+}
+
+// ---------- news ----------
+async function renderNews(){
+  const main = $('#main');
+  main.innerHTML = '<div id="nw"><div class="empty">Loading news…</div></div>';
+  if (!state.leagues.length) { $('#nw').innerHTML = '<div class="empty">Pick at least one league above.</div>'; return; }
+  const all = (await Promise.all(state.leagues.filter(k => !L[k].team).map(async k => {
+    try { const d = await getJSON(`${API}${L[k].path}/news?limit=15`, 300000); return (d.articles || []).map(a => ({...a, lg: k})); }
+    catch { return []; }
+  }))).flat();
+  if (state.tab !== 'news') return;
+  all.sort((a, b) => new Date(b.published) - new Date(a.published));
+  $('#nw').innerHTML = all.length ? `<div class="news">${all.map(a => {
+    const img = a.images?.[0]?.url; const href = a.links?.web?.href;
+    return `<a class="card" href="${esc(href)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">
+      ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}
+      <div class="body"><span class="tag">${esc(L[a.lg].label)}</span> <span class="muted" style="font-size:12px">· ${esc(ago(a.published))}</span>
+      <h3>${esc(a.headline)}</h3><p>${esc(a.description || '')}</p></div></a>`;
+  }).join('')}</div>` : '<div class="empty">No news found.</div>';
+}
+
+// ---------- my teams ----------
+async function renderTeams(){
+  const main = $('#main');
+  main.innerHTML = `<div class="bar"><button class="btn primary" id="addTeam">+ Add team</button><span class="muted">Upcoming games, where they're on, and recent results for teams you follow.</span></div><div id="fv"></div>`;
+  $('#addTeam').onclick = openTeamDlg;
+  if (!state.favs.length) { $('#fv').innerHTML = '<div class="empty">No teams yet. Add the teams you follow to see their next games and where to watch them.</div>'; return; }
+  $('#fv').innerHTML = `<div class="grid">${state.favs.map((f, i) => `<div class="card" id="fav${i}"><div class="fav">${f.logo ? `<img src="${esc(f.logo)}" alt="">` : ''}<h3>${esc(f.name)} <span class="muted" style="font-weight:400;font-size:12px">${esc(L[f.league].label)}</span></h3><button class="btn" data-rm="${i}">Remove</button></div><div class="games-list muted">Loading schedule…</div></div>`).join('')}</div>`;
+  $('#fv').onclick = e => { const i = e.target.dataset.rm; if (i == null) return; state.favs.splice(Number(i), 1); save(); renderTeams(); };
+  state.favs.forEach(async (f, i) => {
+    const box = document.querySelector(`#fav${i} .games-list`);
+    try {
+      const evs = f.league === 'kor' ? await koreaSchedule()
+        : (await getJSON(`${API}${L[f.league].path}/teams/${f.id}/schedule`, 300000)).events || [];
+      const next = evs.filter(e => e.competitions[0].status.type.state !== 'post').slice(0, 3);
+      const last = evs.filter(e => e.competitions[0].status.type.state === 'post').slice(-2).reverse();
+      const line = (e, past) => {
+        const c = e.competitions[0];
+        const me = c.competitors.find(t => String(t.id) === String(f.id));
+        const opp = c.competitors.find(t => String(t.id) !== String(f.id));
+        const vs = `${me?.homeAway === 'home' ? 'vs' : '@'} ${esc(opp?.team.shortDisplayName || opp?.team.displayName || 'TBD')}`;
+        if (past) {
+          const s = t => t?.score?.displayValue ?? t?.score ?? '';
+          const res = me?.winner ? 'W' : opp?.winner ? 'L' : 'D';
+          return `<div class="gl"><span>${fmtDay(e.date)} ${vs}</span><span><b>${res}</b> ${esc(s(me))}–${esc(s(opp))}</span></div>`;
+        }
+        const names = broadcastNames(c);
+        return `<div class="gl"><span>${fmtDay(e.date)} ${c.timeValid === false ? 'TBD' : fmtTime(e.date)}<br>${vs}${watchLinkHTML(names) ? '<br>' + watchLinkHTML(names) : ''}</span><span class="chips">${chipsHTML(names)}</span></div>`;
+      };
+      box.classList.remove('muted');
+      box.innerHTML = `<div class="lbl muted" style="font-size:11px;text-transform:uppercase;margin-top:6px">Next up</div>${next.map(e => line(e, false)).join('') || `<div class="muted">No upcoming games listed by ESPN yet.</div>`}
+        ${last.length ? `<div class="lbl muted" style="font-size:11px;text-transform:uppercase;margin-top:10px">Recent</div>${last.map(e => line(e, true)).join('')}` : ''}`;
+    } catch (err) { box.innerHTML = `<span class="err">Couldn't load schedule: ${esc(err.message)}</span>`; }
+  });
+}
+async function fillTeamPick(){
+  const k = $('#teamLeague').value;
+  $('#teamPick').innerHTML = '<option>Loading…</option>';
+  try {
+    const teams = new Map();
+    (await teamsFor(k)).forEach(g => g.entries.forEach(e => teams.set(e.team.id, e.team)));
+    const list = [...teams.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    $('#teamPick').innerHTML = list.length ? list.map(t => `<option value="${esc(t.id)}" data-logo="${esc(t.logos?.[0]?.href || '')}">${esc(t.displayName)}</option>`).join('') : '<option value="">No teams found</option>';
+  } catch (err) { $('#teamPick').innerHTML = `<option value="">Couldn't load teams</option>`; }
+}
+function openTeamDlg(){
+  $('#teamLeague').innerHTML = LEAGUES.map(l => `<option value="${l.k}">${l.label}</option>`).join('');
+  $('#teamLeague').value = state.leagues[0] || 'nfl';
+  $('#teamLeague').onchange = fillTeamPick;
+  fillTeamPick();
+  $('#teamDlg').showModal();
+}
+$('#teamCancel').onclick = () => $('#teamDlg').close();
+$('#teamAdd').onclick = () => {
+  const opt = $('#teamPick').selectedOptions[0]; const league = $('#teamLeague').value;
+  if (!opt?.value) return;
+  if (!state.favs.some(f => f.league === league && f.id === opt.value))
+    state.favs.push({league, id: opt.value, name: opt.textContent, logo: opt.dataset.logo});
+  save(); $('#teamDlg').close(); renderTeams();
+};
+
+// ---------- fantasy AI ----------
+const SUGGESTIONS = [
+  'Who should I start at flex this week?',
+  'Any Lions injuries I need to worry about?',
+  'Best waiver adds for this week?',
+  'Is the Pistons game on a channel I have tonight?',
+];
+let asking = false;
+let pending = [];   // photos attached to the next question: [{media_type, data, thumb}]
+const MAX_PHOTOS = 4;
+
+// Shrink a photo before sending: 1568px on the long side keeps screenshot text readable
+// while keeping uploads small. Also makes a tiny thumbnail to keep in the chat history.
+function loadImage(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(`Couldn't read ${file.name || 'that image'}`)); };
+    img.src = url;
+  });
+}
+function toJpeg(img, max, q){
+  const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', q);
+}
+async function addPhotos(files){
+  const imgs = [...files].filter(f => f.type.startsWith('image/'));
+  for (const f of imgs) {
+    if (pending.length >= MAX_PHOTOS) { alert(`Up to ${MAX_PHOTOS} photos per question.`); break; }
+    try {
+      const img = await loadImage(f);
+      pending.push({media_type: 'image/jpeg', data: toJpeg(img, 1568, 0.85).split(',')[1], thumb: toJpeg(img, 160, 0.7)});
+    } catch (err) { alert(err.message); }
+  }
+  if (state.tab === 'ai') renderAI();
+}
+
+function renderAI(){
+  const main = $('#main');
+  const draft = $('#q')?.value || '';
+  const msgs = state.chat.map(m => `<div class="msg ${m.role}${m.error ? ' err' : ''}">${(m.thumbs || []).map(t => `<img class="mthumb" src="${t}" alt="Attached photo">`).join('')}${esc(m.text)}</div>`).join('')
+    || `<div class="muted">Ask anything about your fantasy team, matchups, injuries, odds or schedules. Every question comes with live scores, lines, standings, injury reports and headlines, and the AI can search the web for anything else.</div>`;
+  main.innerHTML = `<div class="ai">
+    <div>
+      ${IS_SERVED ? '' : location.protocol === 'https:'
+        ? `<div class="err" style="margin-bottom:8px">The AI runs on your Mac using your Claude subscription, so it isn't available in the phone app. On your Mac, run python3 ~/sports-tracker/server.py and open http://localhost:8790</div>`
+        : `<div class="err" style="margin-bottom:8px">The AI needs the local server. In Terminal run: python3 ~/sports-tracker/server.py, then open http://localhost:8790</div>`}
+      <div class="msgs" id="msgs">${msgs}${asking ? '<div class="msg assistant muted">Checking the latest news and stats… (usually 15–60s)</div>' : ''}</div>
+      ${pending.length ? `<div class="pending">${pending.map((p, i) => `<span class="pthumb"><img src="${p.thumb}" alt="Photo ${i+1}"><button title="Remove" data-rmp="${i}">×</button></span>`).join('')}</div>` : ''}
+      <div class="ask">
+        <label class="btn attach" title="Attach photos or screenshots (or paste / drag them in)">📎<input type="file" id="photo" accept="image/*" multiple hidden ${asking ? 'disabled' : ''}></label>
+        <textarea id="q" rows="2" placeholder="Ask a question, or attach a screenshot of your roster or trade offer" ${asking ? 'disabled' : ''}>${esc(draft)}</textarea>
+        <button class="btn primary" id="send" ${asking ? 'disabled' : ''}>Ask</button>
+      </div>
+      <div class="sugg">${SUGGESTIONS.map(s => `<button class="pill" data-q="${esc(s)}">${esc(s)}</button>`).join('')}<button class="pill" id="clear">Clear chat</button></div>
+    </div>
+    <div>
+      <h2 style="margin-top:0">My roster &amp; league</h2>
+      <textarea class="roster" id="roster" placeholder="Paste your fantasy roster, scoring (PPR, half, standard), league size, and this week's opponent. The AI uses this in every answer.">${esc(state.roster)}</textarea>
+      <div class="muted" style="font-size:12px;margin-top:6px">Saved in this browser.</div>
+    </div>
+  </div>`;
+  const box = $('#msgs'); box.scrollTop = box.scrollHeight;
+  $('#roster').oninput = e => { state.roster = e.target.value; save(); };
+  $('#send').onclick = () => ask($('#q').value);
+  $('#photo').onchange = e => { addPhotos(e.target.files); e.target.value = ''; };
+  $('#q').onpaste = e => { const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); addPhotos(f); } };
+  const drop = $('.ai');
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('dragging'); };
+  drop.ondragleave = () => drop.classList.remove('dragging');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('dragging'); if (!asking) addPhotos(e.dataTransfer.files); };
+  document.querySelectorAll('[data-rmp]').forEach(b => b.onclick = () => { pending.splice(Number(b.dataset.rmp), 1); renderAI(); });
+  $('#q').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(e.target.value); } };
+  document.querySelectorAll('[data-q]').forEach(b => b.onclick = () => ask(b.dataset.q));
+  $('#clear').onclick = () => { state.chat = []; save(); renderAI(); };
+}
+async function ask(q){
+  q = (q || '').trim();
+  if ((!q && !pending.length) || asking) return;
+  const photos = pending; pending = [];
+  const history = state.chat.filter(m => !m.error).map(m => ({role: m.role, text: m.thumbs?.length ? `[${m.thumbs.length} photo(s) attached] ${m.text}` : m.text}));
+  state.chat.push({role:'user', text: q || 'What do you see here, and what should I do?', thumbs: photos.map(p => p.thumb)});
+  asking = true; save(); if ($('#q')) $('#q').value = ''; renderAI();
+  try {
+    if (!IS_SERVED) throw new Error('Start the local server first (see the note above).');
+    const r = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({question:q, history, roster:state.roster, favs:state.favs,
+        images: photos.map(p => ({media_type: p.media_type, data: p.data}))})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `Server error ${r.status}`);
+    state.chat.push({role:'assistant', text:d.answer});
+  } catch (err) {
+    state.chat.push({role:'assistant', text:err.message, error:true});
+  }
+  asking = false; save();
+  if (state.tab === 'ai') renderAI();
+}
+
+// ---------- live injury watcher ----------
+// Polls ESPN's injury reports every minute while the page is open. A full snapshot of every
+// player's status is kept so that only real changes alert, not newly followed teams or roster edits.
+const INJ_LEAGUES = ['nfl','nba','mlb'];
+const INJ_POLL_MS = 60000;
+const SEVERITY = {'Out':0, 'Injured Reserve':1, 'Doubtful':2, 'Questionable':3, 'Day-To-Day':4, 'Active':9};
+let injWatched = [], injLastCheck = null, injError = null, injTimer = null;
+state.injSnap = store.get('injSnap', null);      // {"nfl:Name": {s, d, t}}
+state.injAlerts = store.get('injAlerts', []);
+state.injUnseen = store.get('injUnseen', 0);
+
+function isWatched(league, teamId, name){
+  const roster = state.roster.toLowerCase();
+  return state.favs.some(f => f.league === league && String(f.id) === String(teamId))
+    || (!!roster && roster.includes(name.toLowerCase()));
+}
+async function pollInjuries(){
+  const feeds = await Promise.all(INJ_LEAGUES.map(k =>
+    fetch(`${API}${L[k].path}/injuries`, {cache:'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null)));
+  if (feeds.every(f => !f)) { injError = "Couldn't reach ESPN. Retrying in a minute."; if (state.tab === 'injuries') renderInjuries(); return; }
+  injError = null;
+  const snap = {}, watched = [];
+  feeds.forEach((d, i) => {
+    if (!d) return;
+    const k = INJ_LEAGUES[i];
+    (d.injuries || []).forEach(team => (team.injuries || []).forEach(x => {
+      const name = x.athlete?.displayName; if (!name) return;
+      const key = `${k}:${name}`;
+      snap[key] = {s: x.status, d: x.date, t: String(team.id)};
+      if (isWatched(k, team.id, name)) watched.push({key, league:k, name, team: team.displayName, teamId: String(team.id),
+        pos: x.athlete.position?.abbreviation || '', status: x.status, date: x.date, short: x.shortComment || '',
+        link: x.athlete.links?.find(l => l.rel?.includes('playercard'))?.href,
+        fav: state.favs.some(f => f.league === k && String(f.id) === String(team.id))});
+    }));
+  });
+  // Leagues that failed this round keep their old snapshot entries so they don't look "cleared".
+  const prev = state.injSnap;
+  if (prev) feeds.forEach((d, i) => { if (!d) Object.keys(prev).filter(key => key.startsWith(INJ_LEAGUES[i] + ':')).forEach(key => snap[key] = prev[key]); });
+
+  if (prev) {
+    const changes = [];
+    watched.forEach(w => {
+      const p = prev[w.key];
+      if (!p) { if (w.status !== 'Active') changes.push({...w, kind:'new'}); }
+      else if (p.s !== w.status) changes.push({...w, kind:'status', from:p.s});
+      else if (p.d !== w.date && w.status !== 'Active') changes.push({...w, kind:'update'});
+    });
+    Object.entries(prev).forEach(([key, p]) => {
+      const [k, name] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+      if (!snap[key] && p.s !== 'Active' && isWatched(k, p.t, name))
+        changes.push({key, league:k, name, team:'', status:'Off the injury report', from:p.s, kind:'cleared', short:'No longer listed on the injury report.', date:new Date().toISOString()});
+    });
+    if (changes.length) announce(changes);
+  }
+  injWatched = watched; injLastCheck = new Date();
+  state.injSnap = snap; save();
+  updateInjBadge();
+  if (state.tab === 'injuries') renderInjuries();
+}
+function changeText(c){
+  const who = `${c.name}${c.team ? ` (${c.team})` : ''}`;
+  if (c.kind === 'status') return `${who}: ${c.from} → ${c.status}`;
+  if (c.kind === 'new') return `${who} added to injury report: ${c.status}`;
+  if (c.kind === 'cleared') return `${who} is off the injury report (was ${c.from})`;
+  return `${who}: new update (${c.status})`;
+}
+function announce(changes){
+  const now = new Date().toISOString();
+  state.injAlerts = [...changes.map(c => ({at: now, text: changeText(c), short: c.short, status: c.status, league: c.league})), ...state.injAlerts].slice(0, 50);
+  state.injUnseen += changes.length; save();
+  changes.slice(0, 3).forEach(c => toast(changeText(c), c.short));
+  if (changes.length > 3) toast(`+${changes.length - 3} more injury updates`, 'Open the Injuries tab to see them all.');
+  if ('Notification' in window && Notification.permission === 'granted')
+    changes.slice(0, 5).forEach(c => { try { new Notification(changeText(c), {body: c.short, tag: c.key}); } catch {} });
+}
+function toast(title, body){
+  let box = $('#toasts');
+  if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = `<button class="x" title="Dismiss">×</button><b>${esc(title)}</b>${body ? `<div>${esc(body)}</div>` : ''}`;
+  t.onclick = e => { t.remove(); if (!e.target.classList.contains('x')) { state.tab = 'injuries'; save(); renderTabs(); renderLeagues(); render(); } };
+  box.appendChild(t);
+  setTimeout(() => t.remove(), 45000);
+}
+function updateInjBadge(){
+  const b = document.querySelector('[data-tab=injuries]');
+  if (b) b.innerHTML = `Injuries${state.injUnseen ? ` <span class="badge">${state.injUnseen}</span>` : ''}`;
+}
+function startInjuryWatch(){ clearInterval(injTimer); pollInjuries(); injTimer = setInterval(pollInjuries, INJ_POLL_MS); }
+
+function renderInjuries(){
+  if (state.injUnseen) { state.injUnseen = 0; save(); updateInjBadge(); }
+  const pill = s => `<span class="st st-${(s || '').replace(/[^A-Za-z]/g, '')}">${esc(s)}</span>`;
+  const row = w => `<div class="inj"><div>${pill(w.status)}</div><div><b>${w.link ? `<a href="${esc(w.link)}" target="_blank" rel="noopener">${esc(w.name)}</a>` : esc(w.name)}</b> <span class="muted">${esc(w.pos)} · ${esc(w.team)} · updated ${esc(ago(w.date))}</span>${w.short ? `<div class="muted">${esc(w.short)}</div>` : ''}</div></div>`;
+  const bySeverity = (a, b) => ((SEVERITY[a.status] ?? 5) - (SEVERITY[b.status] ?? 5)) || (new Date(b.date) - new Date(a.date));
+  const canNotify = 'Notification' in window && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches;
+  const notifyBtn = !canNotify ? '' : Notification.permission === 'granted' ? '<span class="muted">Desktop alerts on</span>'
+    : Notification.permission === 'denied' ? '<span class="muted">Desktop alerts are blocked in browser settings</span>'
+    : '<button class="btn" id="notif">Turn on desktop alerts</button>';
+
+  const rosterText = state.roster.toLowerCase();
+  const onRoster = injWatched.filter(w => rosterText && rosterText.includes(w.name.toLowerCase())).sort(bySeverity);
+  const teamSections = state.favs.filter(f => INJ_LEAGUES.includes(f.league)).map(f => {
+    const list = injWatched.filter(w => w.league === f.league && w.teamId === String(f.id) && w.status !== 'Active').sort(bySeverity);
+    return `<h2>${esc(f.name)}</h2>${list.length ? `<div class="card">${list.map(row).join('')}</div>` : `<div class="empty">${injLastCheck ? 'Nobody on the injury report.' : 'Loading…'}</div>`}`;
+  }).join('');
+
+  $('#main').innerHTML = `
+    <div class="bar">
+      <span class="${injError ? 'err' : 'muted'}">${injError ? esc(injError) : injLastCheck ? `<span class="live">●</span> Live · checked ${injLastCheck.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'})} · checks every minute while this page is open` : 'Checking…'}</span>
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">${notifyBtn}<button class="btn" id="checkNow">Check now</button></span>
+    </div>
+    ${canNotify ? '' : '<div class="muted" style="font-size:12px;margin-bottom:8px">Phone alerts come through the ntfy app, even when this app is closed.</div>'}
+    <h2 style="margin-top:0">Latest changes</h2>
+    ${state.injAlerts.length ? `<div class="card">${state.injAlerts.slice(0, 15).map(a => `<div class="inj"><div class="muted" style="font-size:12px;white-space:nowrap">${esc(ago(a.at))}</div><div><b>${esc(a.text)}</b>${a.short ? `<div class="muted">${esc(a.short)}</div>` : ''}</div></div>`).join('')}</div>`
+      : `<div class="empty">No changes yet. When a status changes for your teams or roster players, it shows here and pops up on screen.</div>`}
+    <h2>On your fantasy roster</h2>
+    ${!state.roster.trim() ? `<div class="empty">Paste your roster in the Fantasy AI tab (full player names) and their injury news will be tracked here too.</div>`
+      : onRoster.length ? `<div class="card">${onRoster.map(row).join('')}</div>` : `<div class="empty">${injLastCheck ? 'None of your roster players are on an injury report.' : 'Loading…'}</div>`}
+    ${teamSections}`;
+  $('#checkNow').onclick = () => { $('#checkNow').disabled = true; pollInjuries(); };
+  if ($('#notif')) $('#notif').onclick = async () => { await Notification.requestPermission(); renderInjuries(); };
+}
+
+// ---------- router ----------
+function render(soft){
+  clearTimeout(refreshTimer);
+  ({games: renderGames, teams: renderTeams, standings: renderStandings, news: renderNews, injuries: renderInjuries, ai: renderAI})[state.tab](soft);
+}
+renderTabs(); renderLeagues(); updateInjBadge(); render(); startInjuryWatch(); syncWatchlist();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

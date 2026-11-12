@@ -1,0 +1,7 @@
+# Local state, never published
+.injury_snapshot.json
+injury_watch.log
+injury_watch.err.log
+__pycache__/
+.env
+.DS_Store
